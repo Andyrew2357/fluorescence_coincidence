@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import os
 from matplotlib import pyplot as plt
-import exp_params
+import exp_params as exp
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -35,7 +35,7 @@ def get_ang_corr(num_ch):
     for r in range(num_ch):
         for ch in range(num_ch):
             if r==ch: continue
-            ang_corr[r]+=exp_params.CHANNEL_ANGULAR_COEFF[ch]*exp_params.CHANNEL_SOLID_ANGLE[ch]
+            ang_corr[r]+=exp.CHANNEL_ANGULAR_COEFF[ch]*exp.CHANNEL_SOLID_ANGLE[ch]
 
     return np.power(ang_corr,-1)
 
@@ -48,8 +48,8 @@ def combine_summed_results(data,num_ch,num_orb,e_bin):
     
     norm_vars=np.power(np.sum(np.power(variances,-1),axis=0),-1)
     
-    return (norm_vars*np.sum(excesses/variances,axis=0))/(e_bin*exp_params.XMAP_ENERGY_UNIT), \
-        np.sqrt(norm_vars)/(e_bin*exp_params.XMAP_ENERGY_UNIT)
+    return (norm_vars*np.sum(excesses/variances,axis=0))/(e_bin*exp.XMAP_ENERGY_UNIT), \
+        np.sqrt(norm_vars)/(e_bin*exp.XMAP_ENERGY_UNIT)
 
 def combine_folder(path,num_ch,num_bins,num_orb,e_bin):
     return combine_summed_results(sum_over_results(path,num_ch,num_bins),num_ch,num_orb,e_bin)
@@ -73,19 +73,75 @@ def combine_data(wdir,num_ch,num_bins,num_orb,e_bin,atten=True,write=True):
     else:
         return result_excesses,result_errors
     
+def k(t):
+    return exp.K_COEFF*(t/exp.D)**0.75
+
+def W_secondaries(t,Es):
+    return 2*k(t)*exp.Z*(exp.E0-exp.EB-Es)/(4*np.pi*Es)
+
+def W_LET(Es):
+    return 2*exp.ALPHA*((exp.E0-exp.EB)/exp.MC2)/(4*np.pi**2*Es)
+
+def plot_thickness(ax,exc,err,Emin,Emax,e_bin,t):
+    start,stop=int(Emin/(e_bin*exp.XMAP_ENERGY_UNIT)),int(Emax/(e_bin*exp.XMAP_ENERGY_UNIT)+0.5)
+    Erange=np.arange((start+0.5)*(e_bin*exp.XMAP_ENERGY_UNIT), \
+                     (stop+0.5)*(e_bin*exp.XMAP_ENERGY_UNIT),e_bin*exp.XMAP_ENERGY_UNIT)
+    Erange_=np.linspace((start+0.5)*(e_bin*exp.XMAP_ENERGY_UNIT), \
+                      (stop+0.5)*(e_bin*exp.XMAP_ENERGY_UNIT),1000)
+    # plot predictions
+    ax.plot(Erange_,0*Erange_,color='k')
+    ax.plot(Erange_,W_secondaries(t,Erange_),color='b')
+    ax.plot(Erange_,W_LET(Erange_),color='r')
+    ax.plot(Erange_,W_LET(Erange_)+W_secondaries(t,Erange_),color='g')
+
+    # plot excesses
+    ax.errorbar(Erange,exc[start:stop],yerr=err[start:stop],ls='none')
+    ax.scatter(Erange,exc[start:stop])
+    ax.set_title(f'{t}nm')
+    ax.set_xlabel('Energy (keV)')
+    ax.set_ylabel('Normalized Excess Rate')
+
+def plot(wdir,Emin,Emax,e_bin,save=False):
+    excess=np.genfromtxt(os.path.join(wdir,'combined_result_excesses.csv'),delimiter=',')
+    errors=np.genfromtxt(os.path.join(wdir,'combined_result_errors.csv'),delimiter=',')
+
+    fig,((ax0,ax1),(ax2,ax3))=plt.subplots(2,2)
+    plot_thickness(ax0,excess[0,:],errors[0,:],Emin,Emax,e_bin,40)
+    plot_thickness(ax1,excess[1,:],errors[1,:],Emin,Emax,e_bin,80)
+    plot_thickness(ax2,excess[2,:],errors[2,:],Emin,Emax,e_bin,160)
+    plot_thickness(ax3,excess[3,:],errors[3,:],Emin,Emax,e_bin,320)
+    plt.tight_layout()
+
+    if save:
+        plt.savefig(os.path.join(wdir,f'normalized_excess_plots_(Emin={Emin},Emax={Emax}).png'))
+    else:
+        plt.show()
+
 if __name__=='__main__':
     # Parsing command line arguments
     p = argparse.ArgumentParser()
+    sp=p.add_subparsers(dest='command')
 
-    # read/write location arguments
-    p.add_argument(help='working directory',dest='wdir') 
-    # processing arguments
-    p.add_argument(help='length of energy bin (xMAP units)',type=int,dest='e_bin')
-    p.add_argument(help='number of bins in final histogram',type=int,dest='n_bins') 
-    p.add_argument(help='number of detector channels',type=int,dest='n_ch')
-    p.add_argument(help='number of orbits over which to average accidentals',type=int,dest='n_orb')
-    p.add_argument('--skipwrite',help='do not write the result to a CSV',action='store_false')
-    p.add_argument('--noatten',help='do not correct for attenuation',action='store_false')
+    # plot command
+    plot_p=sp.add_parser('plot',help='plot excesses command')
+    plot_p.add_argument(help='working directory',dest='wdir')
+    plot_p.add_argument(help='length of energy bin (xMAP units)',type=int,dest='e_bin')
+    plot_p.add_argument(help='lower bound of scattered energies to plot (keV)',type=float,dest='Emin')
+    plot_p.add_argument(help='upper bound of scattered energies to plot (keV)',type=float,dest='Emax')
+    plot_p.add_argument('--save_plt',help='save the plot generated',action='store_true')
+
+    # combine command
+    combine_p=sp.add_parser('combine',help='combine reduced data')
+    combine_p.add_argument(help='working directory',dest='wdir') 
+    combine_p.add_argument(help='length of energy bin (xMAP units)',type=int,dest='e_bin')
+    combine_p.add_argument(help='number of bins in final histogram',type=int,dest='n_bins') 
+    combine_p.add_argument(help='number of detector channels',type=int,dest='n_ch')
+    combine_p.add_argument(help='number of orbits over which to average accidentals',type=int,dest='n_orb')
+    combine_p.add_argument('--skipwrite',help='do not write the result to a CSV',action='store_false')
+    combine_p.add_argument('--noatten',help='do not correct for attenuation',action='store_false')
     a=p.parse_args()
 
-    combine_data(a.wdir,a.n_ch,a.n_bins,a.n_orb,a.e_bin,a.noatten,a.skipwrite)
+    if a.command=='plot':
+        plot(a.wdir,a.Emin,a.Emax,a.e_bin,a.save_plt)
+    elif a.command=='combine':
+        combine_data(a.wdir,a.n_ch,a.n_bins,a.n_orb,a.e_bin,a.noatten,a.skipwrite)
