@@ -1,5 +1,6 @@
 import numpy as np
 from collections import defaultdict
+from collections import deque
 from scipy.io import netcdf_file
 
 class Processor:
@@ -46,7 +47,20 @@ class Processor:
                     for E in scattered[(sc,t_off)]: reduced_acoin[self.n_ch*e['channel']+sc,E]+=1
         
         return (reduced_coin,reduced_acoin,fluor_count)
-    
+
+    def count_coin(self,path,fl_ch,sc_ch,Es_l,Es_h):
+        evts=self.read(path,self.sim)
+        times=deque()
+        sc_cnt=defaultdict(int)
+        for t,E,ch in evts:
+            if ch==fl_ch and self.fl_l < E < self.fl_h: 
+                times.append(int(t*self.t_factor))
+            elif ch==sc_ch and Es_l < E < Es_h: 
+                sc_cnt[int(t*self.t_factor)]+=1
+        s=0
+        for t in times: s+=sc_cnt[t]
+        return s
+                
     def read(self,path,simulated=False):
         if simulated: return np.load(path)
         """Read in a netcdf (.nc) file from disk and return the data contained
