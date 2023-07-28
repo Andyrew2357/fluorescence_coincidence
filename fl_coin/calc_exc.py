@@ -6,6 +6,7 @@ import numpy as np
 import os
 from matplotlib import pyplot as plt
 import exp_params as exp
+from scipy.stats import chi2
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -113,9 +114,39 @@ def plot(wdir,Emin,Emax,e_bin,save=False):
     plt.tight_layout()
 
     if save:
-        plt.savefig(os.path.join(wdir,f'normalized_excess_plots_(Emin={Emin},Emax={Emax}).png'))
+        if not os.path.isdir(os.path.join(wdir,'figures/')): os.mkdir(os.path.join(wdir,'figures/'))
+        plt.savefig(os.path.join(os.path.join(wdir,'figures/'), \
+                                 f'normalized_excess_plots_(Emin={Emin},Emax={Emax}).png'))
     else:
         plt.show()
+
+def calc_chisq(obs,err,pred,rnd=True):
+    chi_sq=np.sum((obs-pred)**2/err**2)
+    nu=obs.shape
+    p=(1-chi2.cdf(chi_sq,nu))[0]
+    if rnd: return round(chi_sq,3),round(p,5)
+    return chi_sq,p
+
+def excess_chisq(wdir,Emin,Emax,e_bin,save=False):
+    excess=np.genfromtxt(os.path.join(wdir,'combined_result_excesses.csv'),delimiter=',')
+    errors=np.genfromtxt(os.path.join(wdir,'combined_result_errors.csv'),delimiter=',')
+    start,stop=int(Emin/(e_bin*exp.XMAP_ENERGY_UNIT)),int(Emax/(e_bin*exp.XMAP_ENERGY_UNIT)+0.5)
+    Erange=np.arange((start+0.5)*(e_bin*exp.XMAP_ENERGY_UNIT), \
+                     (stop+0.5)*(e_bin*exp.XMAP_ENERGY_UNIT),e_bin*exp.XMAP_ENERGY_UNIT)
+    
+    table=[('','df','SEC chi2','SEC p','LET chi2','LET p','TOT chi2','TOT p')]
+    df=(Erange.shape)[0]
+    for r,t in enumerate([40,80,160,320]):
+        SECchi2,SECp=calc_chisq(excess[r,start:stop],errors[r,start:stop],W_secondaries(t,Erange))
+        LETchi2,LETp=calc_chisq(excess[r,start:stop],errors[r,start:stop],W_LET(Erange))
+        TOTchi2,TOTp=calc_chisq(excess[r,start:stop],errors[r,start:stop],W_LET(Erange)+W_secondaries(t,Erange))
+        table.append((str(s) for s in (f'{t}nm',df,SECchi2,SECp,LETchi2,LETp,TOTchi2,TOTp)))
+
+    if save:
+        if not os.path.isdir(os.path.join(wdir,'chisq/')): os.mkdir(os.path.join(wdir,'chisq/'))
+        with open(os.path.join(os.path.join(wdir,'chisq/'),f'chisq_table_(Emin={Emin},Emax={Emax}).txt'),'w+') as f:
+            for row in table: f.write('| {:>4} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |\n'.format(*row))
+    for row in table: print('| {:>6} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |'.format(*row))
 
 if __name__=='__main__':
     # Parsing command line arguments
@@ -139,9 +170,19 @@ if __name__=='__main__':
     combine_p.add_argument(help='number of orbits over which to average accidentals',type=int,dest='n_orb')
     combine_p.add_argument('--skipwrite',help='do not write the result to a CSV',action='store_false')
     combine_p.add_argument('--noatten',help='do not correct for attenuation',action='store_false')
-    a=p.parse_args()
 
+    # chisq command
+    chisq_p=sp.add_parser('chisq',help='calculate chi square results')
+    chisq_p.add_argument(help='working directory',dest='wdir')
+    chisq_p.add_argument(help='length of energy bin (xMAP units)',type=int,dest='e_bin')
+    chisq_p.add_argument(help='lower bound of scattered energies to plot (keV)',type=float,dest='Emin')
+    chisq_p.add_argument(help='upper bound of scattered energies to plot (keV)',type=float,dest='Emax')
+    chisq_p.add_argument('--save_chi2',help='save the plot generated',action='store_true')
+
+    a=p.parse_args()
     if a.command=='plot':
         plot(a.wdir,a.Emin,a.Emax,a.e_bin,a.save_plt)
     elif a.command=='combine':
         combine_data(a.wdir,a.n_ch,a.n_bins,a.n_orb,a.e_bin,a.noatten,a.skipwrite)
+    elif a.command=='chisq':
+        excess_chisq(a.wdir,a.Emin,a.Emax,a.e_bin,a.save_chi2)
