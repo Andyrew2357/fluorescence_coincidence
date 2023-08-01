@@ -62,7 +62,7 @@ def correct_atten(data,e_bin):
 def combine_data(wdir,num_ch,num_bins,num_orb,e_bin,atten=True,write=True):
     result_excesses=np.zeros((5,num_bins))
     result_errors=np.zeros((5,num_bins))
-    for r,t in enumerate(['40nm/','80nm/','160nm/','320nm/','empty/']):
+    for r,t in enumerate(['data/40nm/','data/80nm/','data/160nm/','data/320nm/','data/empty/']):
         exc,err=combine_folder(os.path.join(wdir,t),num_ch,num_bins,num_orb,e_bin)
         result_excesses[r,:]+=exc
         result_errors[r:]+=err
