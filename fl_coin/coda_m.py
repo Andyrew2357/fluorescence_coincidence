@@ -13,7 +13,8 @@ import time
 
 def reduce_main(r_dir,w_dir,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,master_csv):
     begin_run_time=time.perf_counter()
-    for t in ['40nm/','80nm/','160nm/','320nm/','empty/']:
+    if not os.path.isdir(os.path.join(a.w_dir,'data/')): os.mkdir(os.path.join(a.w_dir,'data/'))
+    for t in ['data/40nm/','data/80nm/','data/160nm/','data/320nm/','data/empty/']:
         p=os.path.join(a.w_dir,t)
         if not os.path.isdir(p): os.mkdir(p)
 
@@ -21,7 +22,7 @@ def reduce_main(r_dir,w_dir,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,master_csv):
     with open(master_csv,'r+') as master:
         for l in master:
             run,thickness=l.strip().split(',')
-            w_name=f'{thickness}/{run}'
+            w_name=f'data/{thickness}/{run}'
             data_dir=os.path.join(r_dir,'%s/list/' % run)
             reduce.reduce_data(data_dir,w_dir,w_name,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,n_cor)
 
