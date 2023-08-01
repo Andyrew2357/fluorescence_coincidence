@@ -16,38 +16,85 @@ class Processor:
         self.n_orb=n_orb
         self.sim=sim
     
-    def process_file(self,path):
+    # def process_file(self,path):
+    #     """process the relevant file for coincidences and accidentals and add this info to
+    #     the reduced data array."""
+    #     reduced_coin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
+    #     reduced_acoin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
+    #     fluor_count = np.zeros((self.n_ch),dtype=int)
+    #     events = self.read(path,self.sim)
+        
+    #     # create a dictionary for events binned in time and energy for given channels
+    #     scattered = defaultdict(list)
+    #     for e in events:
+    #         scattered[(e['channel'],int(e['time']*self.t_factor))].append(int(e['E']*self.e_factor))
+
+    #     # loop through events keeping track of the sum of coincident and acoincident
+    #     # counts at each energy level. The sum is sufficient for poisson stats.
+        
+    #     for e in events:
+    #         if e['E'] < self.fl_l or e['E'] > self.fl_h: continue
+            
+    #         fluor_count[e['channel']]+=1
+    #         t_in = int(e['time']*self.t_factor)
+            
+    #         for sc in range(self.n_ch):
+    #             if e['channel'] == sc: continue
+
+    #             for E in scattered[(sc,t_in)]: reduced_coin[self.n_ch*e['channel']+sc,E]+=1
+    #             for i in range(1,self.n_orb+1):
+    #                 t_off = int((e['time']-i*self.t_orb)*self.t_factor)
+    #                 for E in scattered[(sc,t_off)]: reduced_acoin[self.n_ch*e['channel']+sc,E]+=1
+        
+    #     return (reduced_coin,reduced_acoin,fluor_count)
+
+    def process_file(self,path)
         """process the relevant file for coincidences and accidentals and add this info to
         the reduced data array."""
         reduced_coin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
         reduced_acoin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
         fluor_count = np.zeros((self.n_ch),dtype=int)
-        events = self.read(path,self.sim)
-        
+        evts = self.read(path,self.sim)
+
         # create a dictionary for events binned in time and energy for given channels
-        scattered = defaultdict(list)
-        for e in events:
-            scattered[(e['channel'],int(e['time']*self.t_factor))].append(int(e['E']*self.e_factor))
+        sc=defaultdict(list)
+        fl=deque()
+        for t,E,ch in evts
+            sc[(ch,int(t*self.t_factor))].append(int(E*self.e_factor))
+            if self.fl_l < E < self.fl_h:
+                fl.append((ch,t))
+                fluor_count[ch]+=1
 
         # loop through events keeping track of the sum of coincident and acoincident
         # counts at each energy level. The sum is sufficient for poisson stats.
-        
-        for e in events:
-            if e['E'] < self.fl_l or e['E'] > self.fl_h: continue
-            
-            fluor_count[e['channel']]+=1
-            t_in = int(e['time']*self.t_factor)
-            
-            for sc in range(self.n_ch):
-                if e['channel'] == sc: continue
+        for f_ch,t in fl:
+            for ch in range(self.n_ch):
+                if ch==f_ch: continue
 
-                for E in scattered[(sc,t_in)]: reduced_coin[self.n_ch*e['channel']+sc,E]+=1
+                for E in sc[(ch,int(t*self.t_factor))]: reduced_coin[self.n_ch*f_ch+ch,E]+=1
                 for i in range(1,self.n_orb+1):
-                    t_off = int((e['time']-i*self.t_orb)*self.t_factor)
-                    for E in scattered[(sc,t_off)]: reduced_acoin[self.n_ch*e['channel']+sc,E]+=1
+                    t_off=int((t-i*self.t_orb)*self.t_factor)
+                    for E in sc[(ch,t_off)]: reduced_acoin[self.n_ch*f_ch+ch,E]+=1
         
-        return (reduced_coin,reduced_acoin,fluor_count)
+    def accidentals_given_offset(self,path,t_off):
+        evts=self.read(path,self.sim)
+        n=len(t_off)
+        
+        sc_cnt=defaultdict(int)
+        fluo=deque()
+        for t,E,ch in evts: 
+            sc_scnt[(ch,int(t*self.t_factor))]+=1
+            if self.fl_l < E < self.fl_h: fluo.append((ch,t))
 
+        acoin=0
+        for f_ch,t in fluo:
+            for i in range(n):
+                bt=int((t-t_off[i])*self.t_factor)
+                for ch in range(self.n_ch):
+                    if f_ch=ch: continue
+                    acoin+=sc_cnt[(ch,bt)]
+        return acoin
+            
     def count_coin(self,path,fl_ch,sc_ch,Es_l,Es_h):
         evts=self.read(path,self.sim)
         times=deque()
