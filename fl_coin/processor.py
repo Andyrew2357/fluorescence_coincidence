@@ -48,7 +48,7 @@ class Processor:
         
     #     return (reduced_coin,reduced_acoin,fluor_count)
 
-    def process_file(self,path)
+    def process_file(self,path):
         """process the relevant file for coincidences and accidentals and add this info to
         the reduced data array."""
         reduced_coin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
@@ -59,7 +59,7 @@ class Processor:
         # create a dictionary for events binned in time and energy for given channels
         sc=defaultdict(list)
         fl=deque()
-        for t,E,ch in evts
+        for t,E,ch in evts:
             sc[(ch,int(t*self.t_factor))].append(int(E*self.e_factor))
             if self.fl_l < E < self.fl_h:
                 fl.append((ch,t))
@@ -76,23 +76,25 @@ class Processor:
                     t_off=int((t-i*self.t_orb)*self.t_factor)
                     for E in sc[(ch,t_off)]: reduced_acoin[self.n_ch*f_ch+ch,E]+=1
         
-    def accidentals_given_offset(self,path,t_off):
-        evts=self.read(path,self.sim)
-        n=len(t_off)
+        return reduced_coin,reduced_acoin,fluor_count
         
+    def accidentals_given_offset(self,path,off_l,off_h,off_s):
+        evts=self.read(path,self.sim)
+        offsets=np.arange(off_l,off_h,off_s)
+
         sc_cnt=defaultdict(int)
         fluo=deque()
         for t,E,ch in evts: 
-            sc_scnt[(ch,int(t*self.t_factor))]+=1
+            sc_cnt[(ch,int(t*self.t_factor))]+=1
             if self.fl_l < E < self.fl_h: fluo.append((ch,t))
 
-        acoin=0
+        acoin=np.zeros(int((off_h-off_l)/off_s))
         for f_ch,t in fluo:
-            for i in range(n):
-                bt=int((t-t_off[i])*self.t_factor)
+            for i,t_off in enumerate(offsets):
+                bt=int((t-t_off)*self.t_factor)
                 for ch in range(self.n_ch):
-                    if f_ch=ch: continue
-                    acoin+=sc_cnt[(ch,bt)]
+                    if f_ch==ch: continue
+                    acoin[i]+=sc_cnt[(ch,bt)]
         return acoin
             
     def count_coin(self,path,fl_ch,sc_ch,Es_l,Es_h):
