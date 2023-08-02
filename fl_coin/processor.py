@@ -86,7 +86,7 @@ class Processor:
         fluor_count = np.zeros((self.n_ch),dtype=int)
         evts = self.read(path,self.sim)
 
-        fl={}
+        fl=set()
         for t,E,ch in evts:
             if self.fl_l < E < self.fl_h: 
                 fl.add((ch,int(t*self.t_factor)))
