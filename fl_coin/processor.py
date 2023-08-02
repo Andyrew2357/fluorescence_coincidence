@@ -48,6 +48,36 @@ class Processor:
         
     #     return (reduced_coin,reduced_acoin,fluor_count)
 
+    # def process_file(self,path):
+    #     """process the relevant file for coincidences and accidentals and add this info to
+    #     the reduced data array."""
+    #     reduced_coin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
+    #     reduced_acoin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
+    #     fluor_count = np.zeros((self.n_ch),dtype=int)
+    #     evts = self.read(path,self.sim)
+
+    #     # create a dictionary for events binned in time and energy for given channels
+    #     sc=defaultdict(list)
+    #     fl=deque()
+    #     for t,E,ch in evts:
+    #         sc[(ch,int(t*self.t_factor))].append(int(E*self.e_factor))
+    #         if self.fl_l < E < self.fl_h:
+    #             fl.append((ch,t))
+    #             fluor_count[ch]+=1
+
+    #     # loop through events keeping track of the sum of coincident and acoincident
+    #     # counts at each energy level. The sum is sufficient for poisson stats.
+    #     for f_ch,t in fl:
+    #         for ch in range(self.n_ch):
+    #             if ch==f_ch: continue
+
+    #             for E in sc[(ch,int(t*self.t_factor))]: reduced_coin[self.n_ch*f_ch+ch,E]+=1
+    #             for i in range(1,self.n_orb+1):
+    #                 t_off=int((t-i*self.t_orb)*self.t_factor)
+    #                 for E in sc[(ch,t_off)]: reduced_acoin[self.n_ch*f_ch+ch,E]+=1
+        
+    #     return reduced_coin,reduced_acoin,fluor_count
+
     def process_file(self,path):
         """process the relevant file for coincidences and accidentals and add this info to
         the reduced data array."""
@@ -56,26 +86,20 @@ class Processor:
         fluor_count = np.zeros((self.n_ch),dtype=int)
         evts = self.read(path,self.sim)
 
-        # create a dictionary for events binned in time and energy for given channels
-        sc=defaultdict(list)
-        fl=deque()
+        fl={}
         for t,E,ch in evts:
-            sc[(ch,int(t*self.t_factor))].append(int(E*self.e_factor))
-            if self.fl_l < E < self.fl_h:
-                fl.append((ch,t))
+            if self.fl_l < E < self.fl_h: 
+                fl.add((ch,int(t*self.t_factor)))
                 fluor_count[ch]+=1
 
-        # loop through events keeping track of the sum of coincident and acoincident
-        # counts at each energy level. The sum is sufficient for poisson stats.
-        for f_ch,t in fl:
-            for ch in range(self.n_ch):
-                if ch==f_ch: continue
-
-                for E in sc[(ch,int(t*self.t_factor))]: reduced_coin[self.n_ch*f_ch+ch,E]+=1
+        for t,E,ch in evts:
+            for fl_ch in range(self.n_ch):
+                if fl_ch==ch: continue
+                if (fl_ch,int(t*self.t_factor)) in fl: reduced_coin[self.n_ch*f_ch+ch,int(E*self.e_factor)]+=1
                 for i in range(1,self.n_orb+1):
-                    t_off=int((t-i*self.t_orb)*self.t_factor)
-                    for E in sc[(ch,t_off)]: reduced_acoin[self.n_ch*f_ch+ch,E]+=1
-        
+                    t_off=int((t+i*self.t_orb)*self.t_factor)
+                    if (fl_ch,t_off) in fl: reduced_acoin[self.n_ch*f_ch+ch,int(E*self.e_factor)]+=1
+
         return reduced_coin,reduced_acoin,fluor_count
         
     def accidentals_given_offset(self,path,off_l,off_h,off_s):
