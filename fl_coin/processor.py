@@ -95,10 +95,10 @@ class Processor:
         for t,E,ch in evts:
             for fl_ch in range(self.n_ch):
                 if fl_ch==ch: continue
-                if (fl_ch,int(t*self.t_factor)) in fl: reduced_coin[self.n_ch*f_ch+ch,int(E*self.e_factor)]+=1
+                if (fl_ch,int(t*self.t_factor)) in fl: reduced_coin[self.n_ch*fl_ch+ch,int(E*self.e_factor)]+=1
                 for i in range(1,self.n_orb+1):
                     t_off=int((t+i*self.t_orb)*self.t_factor)
-                    if (fl_ch,t_off) in fl: reduced_acoin[self.n_ch*f_ch+ch,int(E*self.e_factor)]+=1
+                    if (fl_ch,t_off) in fl: reduced_acoin[self.n_ch*fl_ch+ch,int(E*self.e_factor)]+=1
 
         return reduced_coin,reduced_acoin,fluor_count
         
