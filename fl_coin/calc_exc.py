@@ -3,6 +3,7 @@ __email__ = "avd38@cornell.edu"
 
 import argparse
 import numpy as np
+import pandas as pd
 import os
 from matplotlib import pyplot as plt
 import exp_params as exp
@@ -147,6 +148,35 @@ def excess_chisq(wdir,Emin,Emax,e_bin,save=False):
         with open(os.path.join(os.path.join(wdir,'chisq/'),f'chisq_table_(Emin={Emin},Emax={Emax}).txt'),'w+') as f:
             for row in table: f.write('| {:>4} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |\n'.format(*row))
     for row in table: print('| {:>6} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |'.format(*row))
+
+def get_atten(Erange,n_ch=4,verbose=False):
+    atten_raw=pd.read_csv(exp.ATTENUATION_DOC_PATH)
+    He_T=np.interp(Erange,atten_raw['He_E'].values,atten_raw['He_T'].values)
+    Kap_T=np.interp(Erange,atten_raw['Kap_E'].values,atten_raw['Kap_T'].values)
+    D1_T=np.interp(Erange,atten_raw['D_E'].values,atten_raw['D1_T'].values)
+    D4_T=np.interp(Erange,atten_raw['D_E'].values,atten_raw['D4_T'].values)
+    M320_T=np.interp(Erange,atten_raw['M_E'].values,atten_raw['M320_T'].values)
+    M160_T=np.interp(Erange,atten_raw['M_E'].values,atten_raw['M160_T'].values)
+    M80_T=np.interp(Erange,atten_raw['M_E'].values,atten_raw['M80_T'].values)
+    M40_T=np.interp(Erange,atten_raw['M_E'].values,atten_raw['M40_T'].values)
+
+    if verbose:
+        return He_T,Kap_T,D1_T,D4_T,M320_T,M160_T,M80_T,M40_T 
+    
+    D1_Tot=He_T*Kap_T*D1_T
+    D4_Tot=He_T*Kap_T*D4_T
+    Mode_T=np.zeros((n_ch,len(Erange)))
+    
+    for r in range(n_ch): 
+        for ch in range(n_ch):
+            if r==ch: continue
+            if ch == 0:
+                Mode_T[r,:]+=exp.CHANNEL_SOLID_ANGLE[ch]*D1_Tot
+            else:
+                Mode_T[r,:]+=exp.CHANNEL_SOLID_ANGLE[ch]*D1_Tot
+    Mode_T/=sum(exp.CHANNEL_SOLID_ANGLE)
+
+    return Mode_T,M320_T,M160_T,M80_T,M40_T
 
 if __name__=='__main__':
     # Parsing command line arguments
