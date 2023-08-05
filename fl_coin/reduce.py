@@ -1,10 +1,6 @@
-"""Processing script for IAB. Modeled after the original script by Chase Goddard 
-(email: cwg45@cornell.edu). Designed to run faster with less memory allocation."""
-
 __author__ = "Andrew DiFabbio"
 __email__ = "avd38@cornell.edu"
 
-#imports
 import exp_params
 import processor
 from time import perf_counter
@@ -112,6 +108,10 @@ if __name__== '__main__':
     sp=p.add_subparsers(dest='command')
 
     # reduce command
+    """USAGE: python <PATH TO fl_coin>/fl_coin/reduce.py reduce <PATH TO RAW DATA> <PATH TO WRITE DIRECTORY> \\
+    <RUN NAME> <TIME BIN> <ENERGY BIN> <FLUO ENERGY LOWER BOUND> <FLUO ENERGY UPPER BOUND> <NUMBER OF BINS> \\
+    <NUMBER OF CHANNELS> <NUMBER OF ORBITS> <NUMBER OF CORES> <--sim>"""
+
     reduce_p=sp.add_parser('reduce',help='reduce the data from a single folder')
     reduce_p.add_argument(help='xMAP data directory',dest='r_dir')
     reduce_p.add_argument(help='directory to write output .csv to',dest='w_dir') 
@@ -126,8 +126,12 @@ if __name__== '__main__':
     reduce_p.add_argument(help='number of cores to parallelize over',type=int,dest='n_cor')
     reduce_p.add_argument('--sim',help='--sim indicates whether the data is simulated',action='store_true')
     
-    # tally_acc command
-    tally_acc_p=sp.add_parser('tally_acc',help='tally the accidentals for runs in a folder given offsets')
+    # tallyacc command
+    """USAGE: python <PATH TO fl_coin>/fl_coin/reduce.py tallyacc <TIME OFFSET LOWER BOUND> <TIME OFFSET UPPER BOUND> \\
+    <STEP SIZE BETWEEN TIME OFFSETS> <PATH TO RAW DATA> <PATH TO WRITE DIRECTORY> <RUN NAME> <TIME BIN> \\
+    <FLUO ENERGY LOWER BOUND> <FLUO ENERGY UPPER BOUND> <NUMBER OF CHANNELS> <NUMBER OF CORES> <--sim>"""
+
+    tally_acc_p=sp.add_parser('tallyacc',help='tally the accidentals for runs in a folder given offsets')
     tally_acc_p.add_argument(help='lowest time offset to use in nanoseconds',type=int,dest='off_l')
     tally_acc_p.add_argument(help='highest time offset to use in nanoseconds',type=int,dest='off_h')
     tally_acc_p.add_argument(help='step between off_l and off_h in nanoseconds',type=int,dest='off_s')
@@ -144,6 +148,6 @@ if __name__== '__main__':
     a=p.parse_args()
     if a.command=='reduce':
         reduce_data(a.r_dir,a.w_dir,a.w_name,a.t_bin,a.e_bin,a.fl_l,a.fl_h,a.n_bins,a.n_ch,a.n_orb,a.n_cor,a.sim)
-    elif a.command=='tally_acc':
+    elif a.command=='tallyacc':
         from matplotlib import pyplot as plt
         tally_accidentals(a.off_l,a.off_h,a.off_s,a.r_dir,a.w_dir,a.w_name,a.t_bin,a.fl_l,a.fl_h,a.n_ch,a.n_cor,a.sim)
