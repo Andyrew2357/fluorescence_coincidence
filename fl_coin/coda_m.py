@@ -11,13 +11,17 @@ import os
 import multiprocessing
 import time
 
-def reduce_main(r_dir,w_dir,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,master_csv):
+def reduce_main(r_dir,w_dir,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,master_csv,atten=True):
+    """Reduces raw data according to the provided master CSV and reduction parameters."""
+    
     begin_run_time=time.perf_counter()
+    # If they do not already exist, create the folders for reduced data.
     if not os.path.isdir(os.path.join(a.w_dir,'data/')): os.mkdir(os.path.join(a.w_dir,'data/'))
     for t in ['data/40nm/','data/80nm/','data/160nm/','data/320nm/','data/empty/']:
         p=os.path.join(a.w_dir,t)
         if not os.path.isdir(p): os.mkdir(p)
 
+    # Repeatedly call reduce_data to process each run specified by the master CSV.
     n_cor=multiprocessing.cpu_count()
     with open(master_csv,'r+') as master:
         for l in master:
@@ -26,8 +30,10 @@ def reduce_main(r_dir,w_dir,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,master_csv):
             data_dir=os.path.join(r_dir,'%s/list/' % run)
             reduce.reduce_data(data_dir,w_dir,w_name,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,n_cor)
 
-    calc_exc.combine_data(w_dir,n_ch,n_bins,n_orb,e_bin,False) #currently hardcoding to skip attentuation correction
+    # Combine Reduced Data.
+    calc_exc.combine_data(w_dir,n_ch,n_bins,n_orb,e_bin,atten)
 
+    # Write the reduction parameters and total run-time to a TXT.
     runtime=round((time.perf_counter()-begin_run_time)/3600,3)
     with open(os.path.join(w_dir,'reduction_parameters.txt'),'w') as f:
         f.write('Runtime Parameters: \n')
@@ -40,7 +46,9 @@ def reduce_main(r_dir,w_dir,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,master_csv):
 
     print("COMPLETED. Took {} hrs".format(runtime))
 
-def monitor_main(r_dir,w_dir,w_name,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,sleep_t):
+def monitor_main(r_dir,w_dir,w_name,t_bin,e_bin,fl_l,fl_h,n_bins,n_ch,n_orb,sleep_t): # THIS HAS YET TO BE TESTED IN A REAL ENVIRONMENT
+    """Monitor a folder for incoming data and reduce this data as it comes in."""
+
     with open(os.path.join(w_dir,w_name+'_log.txt'),'w') as f:
         f.write('CODA Log File \n')
         f.write(f'Log file for {os.path.join(w_dir,w_name)} \n')
@@ -95,6 +103,10 @@ if __name__== '__main__':
     sp=p.add_subparsers(dest='command')
 
     # reduce arguments
+    """USAGE: python <PATH TO fl_coin>/fl_coin/coda_m.py reduce <PATH TO RAW DATA> <PATH TO WRITE DIRECTORY> <TIME BIN> \\
+    <ENERGY BIN> <FLUO ENERGY LOWER BOUND> <FLUO ENERGY UPPER BOUND> <NUMBER OF BINS> <NUMBER OF CHANNELS> <NUMBER OF ORBITS> \\
+    <PATH TO MASTER CSV> <--noatten>"""
+
     reduce_p=sp.add_parser('reduce',help='reduce a dataset that has already been acquired')
     reduce_p.add_argument(help='xMAP data directory',dest='r_dir')
     reduce_p.add_argument(help='directory to write output .csv to',dest='w_dir') 
@@ -106,8 +118,13 @@ if __name__== '__main__':
     reduce_p.add_argument(help='number of detector channels',type=int,dest='n_ch')
     reduce_p.add_argument(help='number of orbits over which to average accidentals',type=int,dest='n_orb')
     reduce_p.add_argument(help='path to a csv detailing runs to be processed',dest='master_csv')
+    reduce_p.add_argument('--noatten',help='skip attenuation correction when combining data',action='store_false')
 
-    # monitor arguments
+    # monitor arguments (THIS HAS YET TO BE TESTED IN A REAL ENVIRONMENT.)
+    """USAGE: python <PATH TO fl_coin>/fl_coin/coda_m.py monitor <PATH TO RAW DATA> <PATH TO WRITE DIRECTORY> <RUN NAME> \\
+    <TIME BIN> <ENERGY BIN> <FLUO ENERGY LOWER BOUND> <FLUO ENERGY UPPER BOUND> <NUMBER OF BINS> <NUMBER OF CHANNELS> \\
+    <NUMBER OF ORBITS> <SLEEP TIME>"""
+
     monitor_p=sp.add_parser('monitor',help='monitor a folder for realtime data collection and reduction')
     monitor_p.add_argument(help='xMAP data directory',dest='r_dir')
     monitor_p.add_argument(help='directory to write output .csv to',dest='w_dir')
@@ -123,6 +140,6 @@ if __name__== '__main__':
     
     a=p.parse_args()
     if a.command=='reduce':
-        reduce_main(a.r_dir,a.w_dir,a.t_bin,a.e_bin,a.fl_l,a.fl_h,a.n_bins,a.n_ch,a.n_orb,a.master_csv)
+        reduce_main(a.r_dir,a.w_dir,a.t_bin,a.e_bin,a.fl_l,a.fl_h,a.n_bins,a.n_ch,a.n_orb,a.master_csv,a.noatten)
     elif a.command=='monitor':
         monitor_main(a.r_dir,a.w_dir,a.w_name,a.t_bin,a.e_bin,a.fl_l,a.fl_h,a.n_bins,a.n_ch,a.n_orb,a.sleep_t)
