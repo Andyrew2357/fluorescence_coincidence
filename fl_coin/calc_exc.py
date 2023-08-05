@@ -185,7 +185,7 @@ def excess_chisq(wdir,Emin,Emax,e_bin,save=False):
     if save:
         if not os.path.isdir(os.path.join(wdir,'chisq/')): os.mkdir(os.path.join(wdir,'chisq/'))
         with open(os.path.join(os.path.join(wdir,'chisq/'),f'chisq_table_(Emin={Emin},Emax={Emax}).txt'),'w+') as f:
-            for row in table: f.write('| {:>4} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |\n'.format(*row))
+            for row in table: f.write('| {:>6} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |\n'.format(*row))
     for row in table: print('| {:>6} | {:>2} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10} |'.format(*row))
 
 # CALCULATE AND PRESENT CORRECTIONS FOR ATTENUATION-------------------------------------------------------------
