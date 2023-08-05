@@ -1,3 +1,6 @@
+__author__ = "Andrew DiFabbio"
+__email__ = "avd38@cornell.edu"
+
 import numpy as np
 from collections import defaultdict
 from collections import deque
@@ -15,10 +18,11 @@ class Processor:
         self.n_ch=n_ch
         self.n_orb=n_orb
         self.sim=sim
-        
+
     def process_file(self,path):
-        """process the relevant file for coincidences and accidentals and add this info to
-        the reduced data array."""
+        """Processes the relevant file for coincidences and accidentals and add this info to the reduced data array. 
+        Results take the format <coincidences>,<accidentals>,<fluorescence counts>."""
+
         reduced_coin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
         reduced_acoin = np.zeros((self.n_ch*self.n_ch,self.n_bins),dtype=int)
         fluor_count = np.zeros((self.n_ch),dtype=int)
@@ -41,6 +45,9 @@ class Processor:
         return reduced_coin,reduced_acoin,fluor_count
         
     def accidentals_given_offset(self,path,off_l,off_h,off_s):
+        """Tallies the raw number of accidental counts in the relevant file for a series of time offsets. Returns an
+        array of these counts."""
+
         evts=self.read(path,self.sim)
         offsets=np.arange(off_l,off_h,off_s)
 
@@ -60,6 +67,9 @@ class Processor:
         return acoin
             
     def count_coin(self,path,fl_ch,sc_ch,Es_l,Es_h):
+        """For a given fluorescence channel and scattered channel, counts the number of coincidences in the relavant
+        file for a range of scattered energies."""
+
         evts=self.read(path,self.sim)
         times=deque()
         sc_cnt=defaultdict(int)
